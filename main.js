@@ -208,7 +208,7 @@ function renderPerfumes(perfumesToRender) {
         html += `
         <div class="perfume-card ${isOutOfStock ? 'out-of-stock' : ''}" data-id="${safeIndex}">
             <div class="card-img">
-                <img src="${perfume.image || 'https://placehold.co/300x400/333333/FFFFFF?text=No+Image'}" alt="${perfume.name || 'Без названия'}" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/300x400/333333/FFFFFF?text=Image+Error';">
+                <img src="${perfume.image || 'https://placehold.co/300x400/333333/FFFFFF?text=No+Image'}" alt="${perfume.name || 'Без названия'}" loading="lazy">
             </div>
             <div class="card-content">
                 <h3>${perfume.name || 'Без названия'}</h3>
@@ -227,6 +227,13 @@ function renderPerfumes(perfumesToRender) {
         `;
     });
     perfumeList.innerHTML = html;
+
+    // Обработчик ошибок изображений без inline onerror (для CSP)
+    perfumeList.querySelectorAll('.card-img img').forEach(img => {
+        img.addEventListener('error', function() {
+            this.src = 'https://placehold.co/300x400/333333/FFFFFF?text=Image+Error';
+        }, { once: true });
+    });
 
     // Переинициализируем обработчики событий для новых карточек
     reinitCardEventListeners();
@@ -607,13 +614,13 @@ function updateCartDisplay() {
                     <p>${perfume.brand || 'Без бренда'}</p>
                 </div>
                 <div class="cart-item-controls">
-                    <button onclick="updateQuantity(${item.id}, -1)">-</button>
+                    <button class="qty-btn" data-id="${item.id}" data-change="-1">-</button>
                     <span>${itemQuantity}</span>
-                    <button onclick="updateQuantity(${item.id}, 1)">+</button>
+                    <button class="qty-btn" data-id="${item.id}" data-change="1">+</button>
                 </div>
                 <div class="cart-item-price">
                     <span>${itemTotal.toLocaleString()} ₽</span>
-                    <button onclick="removeFromCart(${item.id})" class="remove-btn">×</button>
+                    <button class="remove-btn" data-remove-id="${item.id}">×</button>
                 </div>
             </div>
         `;
@@ -639,6 +646,37 @@ function updateCartDisplay() {
         totalHTML += `<button onclick="removePromo()" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 0.9rem;">[Удалить]</button></p>`;
     }
     cartTotal.innerHTML = totalHTML;
+}
+
+// Делегирование событий в корзине (убрали inline-обработчики для CSP)
+function initCartEventDelegation() {
+    const cartSection = document.getElementById('cart');
+    if (!cartSection) return;
+    const cartList = cartSection.querySelector('.cart-items');
+    if (!cartList) return;
+
+    // Навешиваем один обработчик на контейнер
+    cartList.addEventListener('click', function(e) {
+        const minusBtn = e.target.closest('button.qty-btn[data-change="-1"]');
+        const plusBtn = e.target.closest('button.qty-btn[data-change="1"]');
+        const removeBtn = e.target.closest('button.remove-btn[data-remove-id]');
+
+        if (minusBtn) {
+            const id = parseInt(minusBtn.getAttribute('data-id'));
+            if (!isNaN(id)) updateQuantity(id, -1);
+            return;
+        }
+        if (plusBtn) {
+            const id = parseInt(plusBtn.getAttribute('data-id'));
+            if (!isNaN(id)) updateQuantity(id, 1);
+            return;
+        }
+        if (removeBtn) {
+            const id = parseInt(removeBtn.getAttribute('data-remove-id'));
+            if (!isNaN(id)) removeFromCart(id);
+            return;
+        }
+    }, { passive: true });
 }
 
 // Показать уведомление
@@ -1471,6 +1509,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // При загрузке показываем каталог
+    initCartEventDelegation();
     showSection('catalog');
     
     console.log("main.js: Инициализация завершена");

@@ -4,6 +4,7 @@
     { "src": "api/index.js", "use": "@vercel/node" }
   ],
   "rewrites": [
+    { "source": "/favicon.ico", "destination": "/img/parfum.png" },
     { "source": "/", "destination": "/index.html" },
     { "source": "/admin", "destination": "/api/index.js" },
     { "source": "/api/admin-login", "destination": "/api/index.js" },
